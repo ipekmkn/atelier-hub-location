@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atelier Hub — UK Venue Map</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f0;color:#1a1a1a;}
+header{background:#1a1a1a;color:#fff;padding:12px 20px;display:flex;align-items:center;gap:12px;}
+header h1{font-size:15px;font-weight:500;}
+header span{font-size:12px;color:#888;margin-left:auto;}
+.layout{display:flex;height:calc(100vh - 44px);}
+#map{flex:1;z-index:1;}
+.sidebar{width:320px;background:#fff;border-left:1px solid #e5e5e0;display:flex;flex-direction:column;overflow:hidden;}
+.sidebar-header{padding:12px 14px;border-bottom:1px solid #e5e5e0;}
+.sidebar-header h2{font-size:12px;font-weight:500;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;}
+.search-input{width:100%;font-size:12px;border:1px solid #e0e0e0;border-radius:6px;padding:6px 10px;margin-bottom:8px;font-family:inherit;}
+.search-input:focus{outline:none;border-color:#999;}
+.filter-row{display:flex;gap:5px;flex-wrap:wrap;}
+.filter-btn{font-size:11px;padding:3px 9px;border-radius:10px;border:1px solid #ddd;background:#fafafa;cursor:pointer;color:#555;}
+.filter-btn.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a;}
+.venue-list{flex:1;overflow-y:auto;}
+.venue-item{padding:10px 14px;border-bottom:1px solid #f0f0ec;cursor:pointer;}
+.venue-item:hover{background:#f9f9f6;}
+.venue-item.selected{background:#f0f0f8;border-left:3px solid #1a1a1a;padding-left:11px;}
+.venue-item-name{font-size:12px;font-weight:500;margin-bottom:2px;}
+.venue-item-area{font-size:11px;color:#999;}
+.venue-item-income{font-size:10px;color:#666;margin-top:1px;}
+.band-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle;}
+.detail-panel{border-top:1px solid #e5e5e0;background:#fafafa;padding:14px;display:none;flex-shrink:0;}
+.detail-panel.open{display:block;}
+.detail-name{font-size:13px;font-weight:600;margin-bottom:3px;}
+.detail-meta{font-size:11px;color:#888;margin-bottom:3px;}
+.detail-income{font-size:11px;color:#555;margin-bottom:10px;background:#f0f0ec;display:inline-block;padding:2px 8px;border-radius:10px;}
+.detail-link{display:inline-block;font-size:11px;color:#1a1a1a;text-decoration:none;border:1px solid #ddd;border-radius:5px;padding:3px 9px;margin-bottom:10px;}
+.detail-link:hover{background:#f0f0f0;}
+.note-label{font-size:10px;color:#888;margin-bottom:3px;text-transform:uppercase;letter-spacing:0.05em;}
+.note-input{width:100%;font-size:12px;border:1px solid #e0e0e0;border-radius:6px;padding:7px;resize:none;height:65px;font-family:inherit;}
+.note-input:focus{outline:none;border-color:#999;}
+.save-btn{margin-top:5px;font-size:11px;padding:4px 12px;background:#1a1a1a;color:#fff;border:none;border-radius:5px;cursor:pointer;}
+.saved-note{font-size:10px;color:#43A047;margin-top:3px;display:none;}
+.legend{position:absolute;bottom:24px;left:10px;z-index:999;background:rgba(255,255,255,0.96);border:1px solid #e0e0e0;border-radius:8px;padding:9px 12px;font-size:11px;}
+.legend-item{display:flex;align-items:center;gap:6px;margin-bottom:4px;color:#555;}
+.legend-item:last-child{margin-bottom:0;}
+.legend-source{font-size:9px;color:#aaa;margin-top:6px;border-top:1px solid #eee;padding-top:5px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Atelier Hub — UK Venue Map</h1>
+  <span id="count-label">Loading...</span>
+</header>
+<div class="layout">
+  <div id="map"></div>
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h2>Venues</h2>
+      <input class="search-input" type="text" id="search-input" placeholder="Search by name or area..." oninput="renderAll()">
+      <div class="filter-row">
+        <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+        <button class="filter-btn" onclick="setFilter('blue',this)">🔵 £50k+</button>
+        <button class="filter-btn" onclick="setFilter('green',this)">🟢 £35-50k</button>
+        <button class="filter-btn" onclick="setFilter('gray',this)">⚫ &lt;£35k</button>
+        <button class="filter-btn" onclick="setFilter('london',this)">London</button>
+        <button class="filter-btn" onclick="setFilter('kent',this)">Kent</button>
+      </div>
+    </div>
+    <div class="venue-list" id="venue-list"></div>
+    <div class="detail-panel" id="detail-panel">
+      <div class="detail-name" id="detail-name"></div>
+      <div class="detail-meta" id="detail-meta"></div>
+      <div class="detail-income" id="detail-income"></div>
+      <br>
+      <a class="detail-link" id="detail-link" target="_blank"></a>
+      <div class="note-label">Notes</div>
+      <textarea class="note-input" id="note-input" placeholder="Add your notes..."></textarea>
+      <button class="save-btn" onclick="saveNote()">Save</button>
+      <div class="saved-note" id="saved-note">✓ Saved</div>
+    </div>
+  </div>
+</div>
+<div class="legend">
+  <div class="legend-item"><span class="band-dot" style="background:#1E5BC6"></span> £45,000+ after housing costs</div>
+  <div class="legend-item"><span class="band-dot" style="background:#2E9E5B"></span> £25,000–45,000</div>
+  <div class="legend-item"><span class="band-dot" style="background:#999"></span> Under £35,000</div>
+  <div class="legend-item"><span class="band-dot" style="background:#ccc;border:1px solid #aaa"></span> Scotland / no ONS data</div>
+  <div class="legend-source">ONS Small Area Income Estimates FYE 2023<br>After housing costs · £45k+ = blue · £25-45k = green</div>
+</div>
+<script>
+const venues=[
+  {name:"Upper Norwood Library Hub",area:"Crystal Palace, SE19",band:"green",region:"london",url:"https://www.uppernorwoodlibraryhub.org/about-us",lat:51.4143,lng:-0.0756,income:"£38,280",msoa:"Lambeth 033",lad:"Lambeth"},
+  {name:"Warren House",area:"Kingston upon Thames",band:"blue",region:"london",url:"https://www.warrenhouse.com/",lat:51.4036,lng:-0.2873,income:"£57,678",msoa:"Kingston upon Thames 002",lad:"Kingston upon Thames"},
+  {name:"The Lensbury Resort",area:"Teddington",band:"blue",region:"london",url:"https://www.lensbury.com/",lat:51.4282,lng:-0.3197,income:"£55,218",msoa:"Richmond upon Thames 018",lad:"Richmond upon Thames"},
+  {name:"Patch Twickenham",area:"Twickenham",band:"blue",region:"london",url:"https://www.patch.work/locations/twickenham",lat:51.4479,lng:-0.3319,income:"£54,889",msoa:"Richmond upon Thames 011",lad:"Richmond upon Thames"},
+  {name:"The Exchange Twickenham",area:"Twickenham",band:"blue",region:"london",url:"",lat:51.4498,lng:-0.3354,income:"£54,889",msoa:"Richmond upon Thames 011",lad:"Richmond upon Thames"},
+  {name:"Watermans Arts Centre",area:"Brentford",band:"green",region:"london",url:"",lat:51.4841,lng:-0.3005,income:"£37,342",msoa:"Hounslow 031",lad:"Hounslow"},
+  {name:"Stanley Arts",area:"South Norwood, SE25",band:"green",region:"london",url:"https://stanleyarts.org/venue-hire/",lat:51.3982,lng:-0.0713,income:"£35,767",msoa:"Croydon 008",lad:"Croydon"},
+  {name:"Harrow Arts Centre",area:"Harrow",band:"green",region:"london",url:"",lat:51.5844,lng:-0.3434,income:"£42,792",msoa:"Harrow 009",lad:"Harrow"},
+  {name:"The Crown Hotel London",area:"Cricklewood, NW2",band:"green",region:"london",url:"https://www.aghotels.co.uk/the-crown-hotel/",lat:51.559,lng:-0.227,income:"£32,337",msoa:"Barnet 039",lad:"Barnet"},
+  {name:"DoubleTree by Hilton Kensington",area:"Kensington, W8",band:"blue",region:"london",url:"https://www.hilton.com/en/hotels/lonkidt-doubletree-london-kensington/",lat:51.4981,lng:-0.1912,income:"£58,862",msoa:"Kensington and Chelsea 011",lad:"Kensington and Chelsea"},
+  {name:"L\'oscar London",area:"Holborn, WC1",band:"green",region:"london",url:"https://www.loscar.com/",lat:51.5173,lng:-0.1184,income:"£37,784",msoa:"Camden 028",lad:"Camden"},
+  {name:"The Chesterfield Mayfair",area:"Mayfair, W1",band:"green",region:"london",url:"https://chesterfieldmayfair.com/",lat:51.5094,lng:-0.1442,income:"£43,642",msoa:"Westminster 013",lad:"Westminster"},
+  {name:"Oatlands Park Hotel",area:"Weybridge, Surrey",band:"blue",region:"london",url:"https://www.oatlandsparkhotel.com/",lat:51.3724,lng:-0.4153,income:"£46,064",msoa:"Elmbridge 011",lad:"Elmbridge"},
+  {name:"Good Hotel London",area:"Royal Docks, E16",band:"blue",region:"london",url:"https://goodhotel.co/london/meet",lat:51.5077,lng:0.0273,income:"£46,930",msoa:"Newham 042",lad:"Newham"},
+  {name:"The Wesley Hotel",area:"Euston, NW1",band:"green",region:"london",url:"https://www.thewesley.co.uk/",lat:51.5266,lng:-0.1357,income:"£31,178",msoa:"Camden 023",lad:"Camden"},
+  {name:"Blue Orchid Hotels",area:"Victoria, SW1",band:"blue",region:"london",url:"https://www.blueorchid.com/",lat:51.4941,lng:-0.1438,income:"£48,893",msoa:"Westminster 022",lad:"Westminster"},
+  {name:"Denham Grove",area:"Denham, Buckinghamshire",band:"green",region:"london",url:"https://denhamgrove.com/",lat:51.5673,lng:-0.5104,income:"£40,756",msoa:"Buckinghamshire 059",lad:"Buckinghamshire"},
+  {name:"The Olde Bell",area:"Hurley, Berkshire",band:"blue",region:"london",url:"https://www.theoldebell.co.uk/",lat:51.5411,lng:-0.8019,income:"£46,115",msoa:"Windsor and Maidenhead 002",lad:"Windsor and Maidenhead"},
+  {name:"Artsdepot",area:"North Finchley, N12",band:"green",region:"london",url:"https://artsdepot.co.uk",lat:51.6022,lng:-0.1784,income:"£36,630",msoa:"Barnet 019",lad:"Barnet"},
+  {name:"Bernie Grant Arts Centre",area:"Tottenham, N15",band:"green",region:"london",url:"https://berniegrantcentre.co.uk",lat:51.5882,lng:-0.0682,income:"£37,291",msoa:"Haringey 023",lad:"Haringey"},
+  {name:"The Tabernacle",area:"Notting Hill, W11",band:"green",region:"london",url:"https://www.thetabernaclew11.com/about",lat:51.5136,lng:-0.2052,income:"£37,486",msoa:"Kensington and Chelsea 004",lad:"Kensington and Chelsea"},
+  {name:"Dalston Lounge",area:"Dalston, E8",band:"green",region:"london",url:"https://www.dalstonlounge.com/",lat:51.5462,lng:-0.0757,income:"£42,614",msoa:"Hackney 020",lad:"Hackney"},
+  {name:"The Chamberlain Hotel",area:"Tower Hill, EC3",band:"blue",region:"london",url:"https://www.thechamberlainhotel.co.uk/",lat:51.5098,lng:-0.0762,income:"£50,879",msoa:"City of London 001",lad:"City of London"},
+  {name:"Holborn House",area:"Holborn, WC2",band:"blue",region:"london",url:"",lat:51.5168,lng:-0.1204,income:"£50,982",msoa:"Westminster 018",lad:"Westminster"},
+  {name:"Limehouse Library Hotel",area:"Limehouse, E14",band:"blue",region:"london",url:"https://limehousehotel.com/",lat:51.5115,lng:-0.0369,income:"£48,749",msoa:"Tower Hamlets 033",lad:"Tower Hamlets"},
+  {name:"The Drum Wembley",area:"Wembley",band:"green",region:"london",url:"https://www.thedrumwembley.com/",lat:51.556,lng:-0.2796,income:"£40,991",msoa:"Brent 035",lad:"Brent"},
+  {name:"Hyatt London Stratford",area:"Stratford, E20",band:"green",region:"london",url:"",lat:51.5423,lng:0.008,income:"£44,673",msoa:"Newham 039",lad:"Newham"},
+  {name:"Streatham Space Project",area:"Streatham, SW16",band:"blue",region:"london",url:"",lat:51.4217,lng:-0.1237,income:"£46,402",msoa:"Lambeth 029",lad:"Lambeth"},
+  {name:"Mercure Thurrock Stifford Hall",area:"Thurrock, Essex",band:"green",region:"london",url:"",lat:51.4881,lng:0.3438,income:"£39,117",msoa:"Thurrock 020",lad:"Thurrock"},
+  {name:"The Bromley Court Hotel",area:"Bromley",band:"blue",region:"london",url:"",lat:51.4068,lng:0.0185,income:"£51,360",msoa:"Bromley 022",lad:"Bromley"},
+  {name:"Crowne Plaza London Ealing",area:"Ealing, W5",band:"blue",region:"london",url:"",lat:51.513,lng:-0.3089,income:"£45,108",msoa:"Ealing 042",lad:"Ealing"},
+  {name:"CastleHaven Community Hub",area:"Camden, NW1",band:"green",region:"london",url:"https://www.castlehaven.org.uk/",lat:51.5422,lng:-0.1455,income:"£36,524",msoa:"Camden 021",lad:"Camden"},
+  {name:"Marlin Serviced Apartments",area:"Islington, EC1",band:"green",region:"london",url:"https://www.marlin.com/",lat:51.5204,lng:-0.1093,income:"£41,885",msoa:"Islington 022",lad:"Islington"},
+  {name:"Gem Langham Court Hotel",area:"Fitzrovia, W1W",band:"green",region:"london",url:"",lat:51.5192,lng:-0.1412,income:"£43,642",msoa:"Westminster 013",lad:"Westminster"},
+  {name:"Broad Green Centre",area:"Croydon, CR0",band:"green",region:"london",url:"",lat:51.3843,lng:-0.105,income:"£30,285",msoa:"Croydon 015",lad:"Croydon"},
+  {name:"Chestnuts Community Centre",area:"Tottenham, N15",band:"green",region:"london",url:"",lat:51.5818,lng:-0.0887,income:"£32,498",msoa:"Haringey 026",lad:"Haringey"},
+  {name:"Peter May Sports Centre",area:"Walthamstow, E17",band:"green",region:"london",url:"https://www.better.org.uk/leisure-centre/london/waltham-forest/peter-may-sports-centre",lat:51.6028,lng:-0.0089,income:"£39,048",msoa:"Waltham Forest 008",lad:"Waltham Forest"},
+  {name:"Ashburton Hall & Park",area:"Croydon, CR0",band:"green",region:"london",url:"https://www.better.org.uk/leisure-centre/london/croydon/ashburton-hall-park",lat:51.3847,lng:-0.0663,income:"£37,694",msoa:"Croydon 014",lad:"Croydon"},
+  {name:"The Dugdale Centre",area:"Enfield, EN2",band:"green",region:"london",url:"",lat:51.6505,lng:-0.0805,income:"£35,924",msoa:"Enfield 015",lad:"Enfield"},
+  {name:"Holiday Inn London Bexley",area:"Bexley, DA5",band:"blue",region:"london",url:"",lat:51.4464,lng:0.1537,income:"£46,818",msoa:"Bexley 023",lad:"Bexley"},
+  {name:"The Centro Buildings",area:"Camden, NW1",band:"green",region:"london",url:"https://www.workspace.co.uk/",lat:51.5371,lng:-0.1362,income:"£34,787",msoa:"Camden 019",lad:"Camden"},
+  {name:"Regus Harrow College Road",area:"Harrow, HA1",band:"green",region:"london",url:"",lat:51.58,lng:-0.3369,income:"£38,883",msoa:"Harrow 023",lad:"Harrow"},
+  {name:"Aurelia Art Studios",area:"Croydon, CR0",band:"green",region:"london",url:"",lat:51.3903,lng:-0.124,income:"£41,307",msoa:"Croydon 011",lad:"Croydon"},
+  {name:"Barking Sporthouse and Gym",area:"Dagenham, RM8",band:"green",region:"london",url:"",lat:51.5458,lng:0.1119,income:"£32,115",msoa:"Barking and Dagenham 017",lad:"Barking and Dagenham"},
+  {name:"L\'atelier",area:"Fitzrovia, W1T",band:"green",region:"london",url:"https://latelier.org.uk/",lat:51.52,lng:-0.14,income:"£37,184",msoa:"Camden 026",lad:"Camden"},
+  {name:"The Stag Sevenoaks",area:"Sevenoaks, TN13",band:"blue",region:"kent",url:"https://stagsevenoaks.co.uk",lat:51.2701,lng:0.1922,income:"£49,325",msoa:"Sevenoaks 012",lad:"Sevenoaks"},
+  {name:"Knole Academy",area:"Sevenoaks, TN13",band:"blue",region:"kent",url:"https://knoleacademy.org",lat:51.2866,lng:0.1843,income:"£51,400",msoa:"Sevenoaks 011",lad:"Sevenoaks"},
+  {name:"Holiday Inn Maidstone-Sevenoaks",area:"Wrotham Heath, TN15",band:"green",region:"kent",url:"https://www.ihg.com",lat:51.3148,lng:0.2847,income:"£41,409",msoa:"Tonbridge and Malling 006",lad:"Tonbridge and Malling"},
+  {name:"Donnington Manor Hotel",area:"Dunton Green, TN13",band:"green",region:"kent",url:"https://donningtonmanorhotel.co.uk",lat:51.2994,lng:0.1778,income:"£41,393",msoa:"Sevenoaks 008",lad:"Sevenoaks"},
+  {name:"The Bull Hotel",area:"Wrotham, TN15",band:"green",region:"kent",url:"https://thebullhotel.com",lat:51.3188,lng:0.2729,income:"£41,409",msoa:"Tonbridge and Malling 006",lad:"Tonbridge and Malling"},
+  {name:"St Julians Club",area:"Sevenoaks",band:"blue",region:"kent",url:"https://www.stjulians.co.uk/parties/",lat:51.2762,lng:0.1886,income:"£49,325",msoa:"Sevenoaks 012",lad:"Sevenoaks"},
+  {name:"Tonbridge School Events",area:"Tonbridge, TN9",band:"green",region:"kent",url:"https://tonbridge-school.org",lat:51.1975,lng:0.2745,income:"£37,248",msoa:"Tonbridge and Malling 012",lad:"Tonbridge and Malling"},
+  {name:"Tonbridge Old Fire Station",area:"Tonbridge, TN9",band:"green",region:"kent",url:"https://theoldfirestationtonbridge.co.uk",lat:51.1968,lng:0.2762,income:"£37,248",msoa:"Tonbridge and Malling 012",lad:"Tonbridge and Malling"},
+  {name:"Fisher Hall",area:"Tonbridge, TN9",band:"green",region:"kent",url:"https://fisherhall.org.uk",lat:51.1994,lng:0.2805,income:"£37,248",msoa:"Tonbridge and Malling 012",lad:"Tonbridge and Malling"},
+  {name:"River Centre",area:"Tonbridge, TN9",band:"green",region:"kent",url:"https://river-centre.org",lat:51.1952,lng:0.2701,income:"£37,248",msoa:"Tonbridge and Malling 012",lad:"Tonbridge and Malling"},
+  {name:"Angel Centre",area:"Tonbridge, TN9",band:"green",region:"kent",url:"https://angelsportscentre.org",lat:51.196,lng:0.272,income:"£37,248",msoa:"Tonbridge and Malling 012",lad:"Tonbridge and Malling"},
+  {name:"Delta Hotels Tudor Park",area:"Bearsted, Maidstone",band:"green",region:"kent",url:"https://marriott.com",lat:51.2781,lng:0.5568,income:"£40,778",msoa:"Maidstone 001",lad:"Maidstone"},
+  {name:"Mercure Maidstone Great Danes",area:"Hollingbourne, ME17",band:"green",region:"kent",url:"https://accor.com",lat:51.2629,lng:0.5897,income:"£39,497",msoa:"Maidstone 015",lad:"Maidstone"},
+  {name:"Bridgewood Manor Hotel",area:"Chatham, ME5",band:"green",region:"kent",url:"https://bridgewoodmanorhotel.com",lat:51.3614,lng:0.5394,income:"£36,143",msoa:"Medway 033",lad:"Medway"},
+  {name:"ORIDA Hotels Maidstone",area:"Maidstone, ME14",band:"green",region:"kent",url:"https://oridahotels.com",lat:51.2762,lng:0.5257,income:"£39,973",msoa:"Maidstone 002",lad:"Maidstone"},
+  {name:"Stone Court House",area:"Maidstone, ME15",band:"green",region:"kent",url:"https://stonecourthouse.co.uk",lat:51.2658,lng:0.5211,income:"£35,139",msoa:"Maidstone 009",lad:"Maidstone"},
+  {name:"Kent Event Centre",area:"Detling, Maidstone",band:"green",region:"kent",url:"https://kenteventcentre.co.uk",lat:51.3008,lng:0.5647,income:"£40,778",msoa:"Maidstone 001",lad:"Maidstone"},
+  {name:"Turkey Mill Events",area:"Maidstone",band:"green",region:"kent",url:"https://turkeymill.com",lat:51.2749,lng:0.5299,income:"£34,441",msoa:"Maidstone 010",lad:"Maidstone"},
+  {name:"The Orangery",area:"Maidstone",band:"green",region:"kent",url:"https://orangerymaidstone.com",lat:51.2725,lng:0.5185,income:"£29,896",msoa:"Maidstone 004",lad:"Maidstone"},
+  {name:"Weald of Kent Hotel",area:"Headcorn, TN27",band:"green",region:"kent",url:"https://wealdofkent.co.uk",lat:51.1733,lng:0.6159,income:"£37,065",msoa:"Maidstone 017",lad:"Maidstone"},
+  {name:"Nurstead Court",area:"Meopham, DA13",band:"green",region:"kent",url:"https://nursteadcourt.co.uk",lat:51.3739,lng:0.3747,income:"£42,895",msoa:"Gravesham 012",lad:"Gravesham"},
+  {name:"Gravesend Old Town Hall",area:"Gravesend, DA11",band:"green",region:"kent",url:"https://gravesham.gov.uk",lat:51.4426,lng:0.368,income:"£26,896",msoa:"Gravesham 002",lad:"Gravesham"},
+  {name:"Viewpoint Community Centre",area:"Gravesend, DA12",band:"green",region:"kent",url:"https://viewpointcommunitycentre.co.uk",lat:51.4219,lng:0.3885,income:"£34,986",msoa:"Gravesham 008",lad:"Gravesham"},
+  {name:"Inn on the Lake",area:"Shorne, DA12",band:"green",region:"kent",url:"https://innonthelake.co.uk",lat:51.4021,lng:0.4148,income:"£39,809",msoa:"Gravesham 010",lad:"Gravesham"},
+  {name:"Cyclopark Event Spaces",area:"Gravesham",band:"green",region:"kent",url:"https://cyclopark.com",lat:51.3972,lng:0.3512,income:"£35,782",msoa:"Gravesham 006",lad:"Gravesham"},
+  {name:"Knowle Country House",area:"Higham, ME3",band:"green",region:"kent",url:"https://knowlecountryhouse.co.uk",lat:51.4103,lng:0.459,income:"£39,809",msoa:"Gravesham 010",lad:"Gravesham"},
+  {name:"Salomons Estate",area:"Tunbridge Wells, TN3",band:"green",region:"kent",url:"https://salomons-estate.com",lat:51.1542,lng:0.2213,income:"£41,289",msoa:"Tunbridge Wells 002",lad:"Tunbridge Wells"},
+  {name:"One Warwick Park Hotel",area:"Tunbridge Wells, TN2",band:"green",region:"kent",url:"https://onewarwickpark.co.uk",lat:51.1326,lng:0.2671,income:"£44,431",msoa:"Tunbridge Wells 012",lad:"Tunbridge Wells"},
+  {name:"Hotel du Vin Tunbridge Wells",area:"Tunbridge Wells, TN1",band:"green",region:"kent",url:"https://hotelduvin.com",lat:51.1322,lng:0.2594,income:"£34,630",msoa:"Tunbridge Wells 008",lad:"Tunbridge Wells"},
+  {name:"The Spa Hotel",area:"Tunbridge Wells, TN4",band:"green",region:"kent",url:"https://spahotel.co.uk",lat:51.1348,lng:0.2438,income:"£32,269",msoa:"Tunbridge Wells 010",lad:"Tunbridge Wells"},
+  {name:"High Rocks",area:"Tunbridge Wells, TN3",band:"green",region:"kent",url:"https://highrocks.co.uk",lat:51.1175,lng:0.2291,income:"£42,906",msoa:"Wealden 002",lad:"Wealden"},
+  {name:"Royal Wells Hotel",area:"Tunbridge Wells, TN4",band:"green",region:"kent",url:"https://royalwells.co.uk",lat:51.1341,lng:0.2524,income:"£44,854",msoa:"Tunbridge Wells 007",lad:"Tunbridge Wells"},
+  {name:"Mercure Tunbridge Wells",area:"Pembury, TN2",band:"green",region:"kent",url:"https://accor.com",lat:51.1354,lng:0.2983,income:"£42,806",msoa:"Tunbridge Wells 004",lad:"Tunbridge Wells"},
+  {name:"The Beacon",area:"Southborough, TN4",band:"green",region:"kent",url:"https://the-beacon.co.uk",lat:51.1498,lng:0.2569,income:"£32,269",msoa:"Tunbridge Wells 010",lad:"Tunbridge Wells"},
+  {name:"Assembly Hall Theatre",area:"Tunbridge Wells",band:"green",region:"kent",url:"https://assemblyhalltheatre.co.uk",lat:51.1331,lng:0.2648,income:"£34,630",msoa:"Tunbridge Wells 008",lad:"Tunbridge Wells"},
+  {name:"Trinity Theatre",area:"Tunbridge Wells",band:"green",region:"kent",url:"https://trinitytheatre.net",lat:51.1336,lng:0.2615,income:"£34,630",msoa:"Tunbridge Wells 008",lad:"Tunbridge Wells"},
+  {name:"The Pantiles Rooms",area:"Tunbridge Wells",band:"green",region:"kent",url:"https://thepantiles.com",lat:51.1295,lng:0.2634,income:"£44,431",msoa:"Tunbridge Wells 012",lad:"Tunbridge Wells"},
+  {name:"Lamberhurst Vineyard Events",area:"Lamberhurst, TN3",band:"green",region:"kent",url:"https://lamberhurstwine.co.uk",lat:51.0917,lng:0.3817,income:"£39,352",msoa:"Tunbridge Wells 011",lad:"Tunbridge Wells"},
+  {name:"Malmaison Leeds",area:"Leeds, LS1",band:"green",region:"leeds",url:"",lat:53.7957,lng:-1.5441,income:"£36,752",msoa:"Leeds 111",lad:"Leeds"},
+  {name:"The Sugar House Bristol",area:"Bristol, BS1",band:"green",region:"bristol",url:"",lat:51.457,lng:-2.5973,income:"£31,823",msoa:"Bristol 060",lad:"Bristol"},
+  {name:"Holiday Inn Nottingham",area:"Nottingham, NG7",band:"green",region:"nottingham",url:"",lat:52.948,lng:-1.162,income:"£25,324",msoa:"Nottingham 040",lad:"Nottingham"},
+  {name:"Ruddington Grange",area:"Ruddington, NG11",band:"green",region:"nottingham",url:"",lat:52.905,lng:-1.148,income:"£40,018",msoa:"Rushcliffe 011",lad:"Rushcliffe"},
+  {name:"One Queen Square Liverpool",area:"Liverpool, L1",band:"green",region:"liverpool",url:"",lat:53.4084,lng:-2.9816,income:"£27,688",msoa:"Liverpool 060",lad:"Liverpool"},
+  {name:"Glasshouse Hotel Edinburgh",area:"Edinburgh, EH1",band:"unknown",region:"edinburgh",url:"",lat:55.9561,lng:-3.1812,income:"None",msoa:"Hillside and Calton Hill",lad:"City of Edinburgh"},
+  {name:"Neville Street Newcastle",area:"Newcastle, NE1",band:"green",region:"newcastle",url:"",lat:54.9689,lng:-1.6176,income:"£25,419",msoa:"Newcastle upon Tyne 036",lad:"Newcastle upon Tyne"},
+  {name:"Crowne Plaza Reading",area:"Winnersh Triangle, RG41",band:"green",region:"reading",url:"",lat:51.4289,lng:-0.8989,income:"£40,799",msoa:"Wokingham 009",lad:"Wokingham"},
+  {name:"1-3 Piccadilly Manchester",area:"Manchester, M1",band:"green",region:"manchester",url:"",lat:53.4808,lng:-2.2374,income:"£39,980",msoa:"Manchester 055",lad:"Manchester"}
+];
+
+const notes=JSON.parse(localStorage.getItem('ah_notes')||'{}');
+let currentFilter='all';
+let selectedIndex=null;
+let markers=[];
+const bandColor={blue:'#1E5BC6',green:'#2E9E5B',gray:'#888',unknown:'#ccc'};
+
+const map=L.map('map').setView([52.0,-1.5],7);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'&copy; OpenStreetMap &copy; CartoDB',maxZoom:19}).addTo(map);
+
+function makeIcon(band){
+  const c=bandColor[band]||'#ccc';
+  const border=band==='unknown'?'1px solid #aaa':'2px solid #fff';
+  return L.divIcon({className:'',html:`<div style="width:13px;height:13px;border-radius:50%;background:${c};border:${border};box-shadow:0 1px 3px rgba(0,0,0,0.25)"></div>`,iconSize:[13,13],iconAnchor:[6,6]});
+}
+
+function getFiltered(){
+  const q=(document.getElementById('search-input')||{}).value||'';
+  const ql=q.toLowerCase();
+  return venues.filter(v=>{
+    const mf=currentFilter==='all'||(currentFilter==='blue'&&v.band==='blue')||(currentFilter==='green'&&v.band==='green')||(currentFilter==='gray'&&v.band==='gray')||v.region===currentFilter;
+    const ms=!ql||v.name.toLowerCase().includes(ql)||v.area.toLowerCase().includes(ql)||(v.lad||'').toLowerCase().includes(ql);
+    return mf&&ms;
+  });
+}
+
+function renderAll(){
+  markers.forEach(m=>map.removeLayer(m));
+  markers=[];
+  const filtered=getFiltered();
+  document.getElementById('count-label').textContent=filtered.length+' / '+venues.length+' venues';
+  const list=document.getElementById('venue-list');
+  list.innerHTML=filtered.map((v,i)=>`
+    <div class="venue-item" id="li-${i}" onclick="selectVenue(${venues.indexOf(v)})">
+      <div class="venue-item-name"><span class="band-dot" style="background:${bandColor[v.band]||'#ccc'}"></span>${v.name}${notes[v.name]?' <span style="font-size:9px;color:#43A047">✎</span>':''}</div>
+      <div class="venue-item-area">${v.area}</div>
+      <div class="venue-item-income">${v.income!=='N/A'?v.income+' · ':''}${v.lad||''}</div>
+    </div>`).join('');
+  filtered.forEach(v=>{
+    const vi=venues.indexOf(v);
+    const m=L.marker([v.lat,v.lng],{icon:makeIcon(v.band)}).addTo(map).on('click',()=>selectVenue(vi));
+    markers.push(m);
+  });
+}
+
+function selectVenue(idx){
+  selectedIndex=idx;
+  const v=venues[idx];
+  document.querySelectorAll('.venue-item').forEach(el=>el.classList.remove('selected'));
+  const fi=getFiltered().indexOf(v);
+  if(fi>=0){const el=document.getElementById('li-'+fi);if(el){el.classList.add('selected');el.scrollIntoView({behavior:'smooth',block:'nearest'});}}
+  map.setView([v.lat,v.lng],14);
+  document.getElementById('detail-panel').classList.add('open');
+  document.getElementById('detail-name').textContent=v.name;
+  document.getElementById('detail-meta').textContent=v.area+(v.lad?' · '+v.lad:'');
+  const inc=document.getElementById('detail-income');
+  if(v.income&&v.income!=='N/A'){
+    inc.textContent=v.income+' avg household income'+(v.msoa?' ('+v.msoa+')':'');
+    inc.style.background=v.band==='blue'?'#e6eeff':v.band==='green'?'#e8f5e9':'#f5f5f5';
+  } else {
+    inc.textContent='Income data not available (Scotland)';
+    inc.style.background='#f5f5f5';
+  }
+  const link=document.getElementById('detail-link');
+  if(v.url){link.href=v.url;link.style.display='inline-block';link.textContent='🌐 '+v.url.replace(/^https?:\/\//,'').split('/')[0];}
+  else{link.style.display='none';}
+  document.getElementById('note-input').value=notes[v.name]||'';
+  document.getElementById('saved-note').style.display='none';
+}
+
+function saveNote(){
+  if(selectedIndex===null)return;
+  const v=venues[selectedIndex];
+  notes[v.name]=document.getElementById('note-input').value;
+  localStorage.setItem('ah_notes',JSON.stringify(notes));
+  const s=document.getElementById('saved-note');
+  s.style.display='block';
+  setTimeout(()=>s.style.display='none',1500);
+  renderAll();
+}
+
+function setFilter(f,btn){
+  currentFilter=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAll();
+}
+
+renderAll();
+</script>
+</body>
+</html>
