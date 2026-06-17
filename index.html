@@ -30,22 +30,30 @@ header span{font-size:12px;color:#888;margin-left:auto;}
 .venue-item-area{font-size:11px;color:#999;}
 .venue-item-income{font-size:10px;color:#666;margin-top:1px;}
 .band-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle;}
-.detail-panel{border-top:1px solid #e5e5e0;background:#fafafa;padding:14px;display:none;flex-shrink:0;}
+.detail-panel{border-top:1px solid #e5e5e0;background:#fafafa;padding:14px;display:none;flex-shrink:0;max-height:60vh;overflow-y:auto;}
 .detail-panel.open{display:block;}
 .detail-name{font-size:13px;font-weight:600;margin-bottom:3px;}
 .detail-meta{font-size:11px;color:#888;margin-bottom:3px;}
 .detail-income{font-size:11px;color:#555;margin-bottom:10px;background:#f0f0ec;display:inline-block;padding:2px 8px;border-radius:10px;}
-.detail-link{display:inline-block;font-size:11px;color:#1a1a1a;text-decoration:none;border:1px solid #ddd;border-radius:5px;padding:3px 9px;margin-bottom:10px;}
+.detail-link{display:inline-block;font-size:11px;color:#1a1a1a;text-decoration:none;border:1px solid #ddd;border-radius:5px;padding:3px 9px;margin-bottom:12px;}
 .detail-link:hover{background:#f0f0f0;}
-.note-label{font-size:10px;color:#888;margin-bottom:3px;text-transform:uppercase;letter-spacing:0.05em;}
-.note-input{width:100%;font-size:12px;border:1px solid #e0e0e0;border-radius:6px;padding:7px;resize:none;height:65px;font-family:inherit;}
-.note-input:focus{outline:none;border-color:#999;}
-.save-btn{margin-top:5px;font-size:11px;padding:4px 12px;background:#1a1a1a;color:#fff;border:none;border-radius:5px;cursor:pointer;}
-.saved-note{font-size:10px;color:#43A047;margin-top:3px;display:none;}
+.field-group{margin-bottom:8px;}
+.field-label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;}
+.field-input{width:100%;font-size:12px;border:1px solid #e0e0e0;border-radius:5px;padding:5px 8px;font-family:inherit;background:#fff;}
+.field-input:focus{outline:none;border-color:#999;}
+textarea.field-input{resize:none;height:60px;}
+.save-btn{margin-top:8px;font-size:11px;padding:5px 14px;background:#1a1a1a;color:#fff;border:none;border-radius:5px;cursor:pointer;width:100%;}
+.save-btn:hover{background:#333;}
+.saved-note{font-size:10px;color:#43A047;margin-top:4px;display:none;text-align:center;}
+.saving-note{font-size:10px;color:#888;margin-top:4px;display:none;text-align:center;}
 .legend{position:absolute;bottom:24px;left:10px;z-index:999;background:rgba(255,255,255,0.96);border:1px solid #e0e0e0;border-radius:8px;padding:9px 12px;font-size:11px;}
 .legend-item{display:flex;align-items:center;gap:6px;margin-bottom:4px;color:#555;}
 .legend-item:last-child{margin-bottom:0;}
 .legend-source{font-size:9px;color:#aaa;margin-top:6px;border-top:1px solid #eee;padding-top:5px;}
+.status-badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:10px;margin-left:5px;}
+.status-confirmed{background:#e8f5e9;color:#2e7d32;}
+.status-researching{background:#fff3e0;color:#e65100;}
+.status-rejected{background:#ffebee;color:#c62828;}
 </style>
 </head>
 <body>
@@ -61,9 +69,8 @@ header span{font-size:12px;color:#888;margin-left:auto;}
       <input class="search-input" type="text" id="search-input" placeholder="Search by name or area..." oninput="renderAll()">
       <div class="filter-row">
         <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
-        <button class="filter-btn" onclick="setFilter('blue',this)">🔵 £50k+</button>
-        <button class="filter-btn" onclick="setFilter('green',this)">🟢 £35-50k</button>
-        <button class="filter-btn" onclick="setFilter('gray',this)">⚫ &lt;£35k</button>
+        <button class="filter-btn" onclick="setFilter('blue',this)">🔵 £45k+</button>
+        <button class="filter-btn" onclick="setFilter('green',this)">🟢 £25-45k</button>
         <button class="filter-btn" onclick="setFilter('london',this)">London</button>
         <button class="filter-btn" onclick="setFilter('kent',this)">Kent</button>
       </div>
@@ -72,24 +79,64 @@ header span{font-size:12px;color:#888;margin-left:auto;}
     <div class="detail-panel" id="detail-panel">
       <div class="detail-name" id="detail-name"></div>
       <div class="detail-meta" id="detail-meta"></div>
-      <div class="detail-income" id="detail-income"></div>
-      <br>
+      <div class="detail-income" id="detail-income"></div><br>
       <a class="detail-link" id="detail-link" target="_blank"></a>
-      <div class="note-label">Notes</div>
-      <textarea class="note-input" id="note-input" placeholder="Add your notes..."></textarea>
-      <button class="save-btn" onclick="saveNote()">Save</button>
-      <div class="saved-note" id="saved-note">✓ Saved</div>
+
+      <div class="field-group">
+        <div class="field-label">Status</div>
+        <select class="field-input" id="field-status">
+          <option value="">— select —</option>
+          <option value="Confirmed">Confirmed</option>
+          <option value="Researching">Researching</option>
+          <option value="Contacted">Contacted</option>
+          <option value="Rejected">Rejected</option>
+          <option value="On Hold">On Hold</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <div class="field-label">Contact person</div>
+        <input class="field-input" type="text" id="field-contact-person" placeholder="Name">
+      </div>
+      <div class="field-group">
+        <div class="field-label">Contact email</div>
+        <input class="field-input" type="email" id="field-contact-email" placeholder="email@venue.com">
+      </div>
+      <div class="field-group">
+        <div class="field-label">Contact phone</div>
+        <input class="field-input" type="text" id="field-contact-phone" placeholder="+44...">
+      </div>
+      <div class="field-group">
+        <div class="field-label">Daily hire</div>
+        <input class="field-input" type="text" id="field-daily-hire" placeholder="£500/day">
+      </div>
+      <div class="field-group">
+        <div class="field-label">Capacity</div>
+        <input class="field-input" type="text" id="field-capacity" placeholder="35 people">
+      </div>
+      <div class="field-group">
+        <div class="field-label">Availability</div>
+        <input class="field-input" type="text" id="field-availability" placeholder="Weekends available">
+      </div>
+      <div class="field-group">
+        <div class="field-label">Notes</div>
+        <textarea class="field-input" id="field-note" placeholder="Add your notes..."></textarea>
+      </div>
+      <button class="save-btn" onclick="saveData()">Save</button>
+      <div class="saving-note" id="saving-note">Saving...</div>
+      <div class="saved-note" id="saved-note">✓ Saved successfully</div>
     </div>
   </div>
 </div>
 <div class="legend">
   <div class="legend-item"><span class="band-dot" style="background:#1E5BC6"></span> £45,000+ after housing costs</div>
   <div class="legend-item"><span class="band-dot" style="background:#2E9E5B"></span> £25,000–45,000</div>
-  <div class="legend-item"><span class="band-dot" style="background:#999"></span> Under £35,000</div>
   <div class="legend-item"><span class="band-dot" style="background:#ccc;border:1px solid #aaa"></span> Scotland / no ONS data</div>
   <div class="legend-source">ONS Small Area Income Estimates FYE 2023<br>After housing costs · £45k+ = blue · £25-45k = green</div>
 </div>
 <script>
+const SUPABASE_URL = 'https://oanhuyivmzocevjudehy.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Oh8zTXbSdUoyNX1qpJemSw_VyKNhY-V';
+
 const venues=[
   {name:"Upper Norwood Library Hub",area:"Crystal Palace, SE19",band:"green",region:"london",url:"https://www.uppernorwoodlibraryhub.org/about-us",lat:51.4143,lng:-0.0756,income:"£38,280",msoa:"Lambeth 033",lad:"Lambeth"},
   {name:"Warren House",area:"Kingston upon Thames",band:"blue",region:"london",url:"https://www.warrenhouse.com/",lat:51.4036,lng:-0.2873,income:"£57,678",msoa:"Kingston upon Thames 002",lad:"Kingston upon Thames"},
@@ -185,22 +232,93 @@ const venues=[
   {name:"1-3 Piccadilly Manchester",area:"Manchester, M1",band:"green",region:"manchester",url:"",lat:53.4808,lng:-2.2374,income:"£39,980",msoa:"Manchester 055",lad:"Manchester"}
 ];
 
-const notes=JSON.parse(localStorage.getItem('ah_notes')||'{}');
+const bandColor={blue:'#1E5BC6',green:'#2E9E5B',gray:'#888',unknown:'#ccc'};
 let currentFilter='all';
 let selectedIndex=null;
 let markers=[];
-const bandColor={blue:'#1E5BC6',green:'#2E9E5B',gray:'#888',unknown:'#ccc'};
+let venueData={};
 
 const map=L.map('map').setView([52.0,-1.5],7);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'&copy; OpenStreetMap &copy; CartoDB',maxZoom:19}).addTo(map);
 
-function makeIcon(band){
-  const c=bandColor[band]||'#ccc';
-  const border=band==='unknown'?'1px solid #aaa':'2px solid #fff';
-  return L.divIcon({className:'',html:`<div style="width:13px;height:13px;border-radius:50%;background:${c};border:${border};box-shadow:0 1px 3px rgba(0,0,0,0.25)"></div>`,iconSize:[13,13],iconAnchor:[6,6]});
+async function loadAllData() {
+  try {
+    const res = await fetch(`$https://oanhuyivmzocevjudehy.supabase.co/rest/v1/venue_notes?select=*`, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer $sb_publishable_Oh8zTXbSdUoyNX1qpJemSw_VyKNhY-V`
+      }
+    });
+    const rows = await res.json();
+    rows.forEach(r => { venueData[r.venue_name] = r; });
+  } catch(e) {
+    console.log('Could not load data:', e);
+  }
 }
 
-function getFiltered(){
+async function saveData() {
+  if(selectedIndex === null) return;
+  const v = venues[selectedIndex];
+  const payload = {
+    venue_name: v.name,
+    status: document.getElementById('field-status').value,
+    contact_person: document.getElementById('field-contact-person').value,
+    contact_email: document.getElementById('field-contact-email').value,
+    contact_phone: document.getElementById('field-contact-phone').value,
+    daily_hire: document.getElementById('field-daily-hire').value,
+    capacity: document.getElementById('field-capacity').value,
+    availability: document.getElementById('field-availability').value,
+    note: document.getElementById('field-note').value,
+  };
+
+  document.getElementById('saving-note').style.display='block';
+  document.getElementById('saved-note').style.display='none';
+
+  try {
+    const existing = venueData[v.name];
+    let res;
+    if(existing && existing.id) {
+      res = await fetch(`$https://oanhuyivmzocevjudehy.supabase.co/rest/v1/venue_notes?id=eq.${existing.id}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer $sb_publishable_Oh8zTXbSdUoyNX1qpJemSw_VyKNhY-V`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(payload)
+      });
+    } else {
+      res = await fetch(`$https://oanhuyivmzocevjudehy.supabase.co/rest/v1/venue_notes`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer $sb_publishable_Oh8zTXbSdUoyNX1qpJemSw_VyKNhY-V`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(payload)
+      });
+    }
+    const result = await res.json();
+    if(result && result[0]) venueData[v.name] = result[0];
+    document.getElementById('saving-note').style.display='none';
+    document.getElementById('saved-note').style.display='block';
+    setTimeout(()=>document.getElementById('saved-note').style.display='none', 2000);
+    renderAll();
+  } catch(e) {
+    document.getElementById('saving-note').style.display='none';
+    alert('Error saving: ' + e.message);
+  }
+}
+
+function makeIcon(band, hasData) {
+  const c = bandColor[band]||'#ccc';
+  const ring = hasData ? `box-shadow:0 0 0 2px ${c},0 0 0 4px white;` : '';
+  return L.divIcon({className:'',html:`<div style="width:13px;height:13px;border-radius:50%;background:${c};border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.25);${ring}"></div>`,iconSize:[13,13],iconAnchor:[6,6]});
+}
+
+function getFiltered() {
   const q=(document.getElementById('search-input')||{}).value||'';
   const ql=q.toLowerCase();
   return venues.filter(v=>{
@@ -210,26 +328,31 @@ function getFiltered(){
   });
 }
 
-function renderAll(){
+function renderAll() {
   markers.forEach(m=>map.removeLayer(m));
   markers=[];
   const filtered=getFiltered();
   document.getElementById('count-label').textContent=filtered.length+' / '+venues.length+' venues';
   const list=document.getElementById('venue-list');
-  list.innerHTML=filtered.map((v,i)=>`
-    <div class="venue-item" id="li-${i}" onclick="selectVenue(${venues.indexOf(v)})">
-      <div class="venue-item-name"><span class="band-dot" style="background:${bandColor[v.band]||'#ccc'}"></span>${v.name}${notes[v.name]?' <span style="font-size:9px;color:#43A047">✎</span>':''}</div>
+  list.innerHTML=filtered.map((v,i)=>{
+    const d=venueData[v.name];
+    const statusBadge=d&&d.status?`<span class="status-badge status-${d.status.toLowerCase().replace(' ','-')}">${d.status}</span>`:'';
+    const hasNote=d&&(d.note||d.contact_person||d.status);
+    return `<div class="venue-item" id="li-${i}" onclick="selectVenue(${venues.indexOf(v)})">
+      <div class="venue-item-name"><span class="band-dot" style="background:${bandColor[v.band]||'#ccc'}"></span>${v.name}${statusBadge}${hasNote?' <span style="font-size:9px;color:#43A047">✎</span>':''}</div>
       <div class="venue-item-area">${v.area}</div>
       <div class="venue-item-income">${v.income!=='N/A'?v.income+' · ':''}${v.lad||''}</div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   filtered.forEach(v=>{
     const vi=venues.indexOf(v);
-    const m=L.marker([v.lat,v.lng],{icon:makeIcon(v.band)}).addTo(map).on('click',()=>selectVenue(vi));
+    const hasData=!!(venueData[v.name]&&(venueData[v.name].note||venueData[v.name].status));
+    const m=L.marker([v.lat,v.lng],{icon:makeIcon(v.band,hasData)}).addTo(map).on('click',()=>selectVenue(vi));
     markers.push(m);
   });
 }
 
-function selectVenue(idx){
+function selectVenue(idx) {
   selectedIndex=idx;
   const v=venues[idx];
   document.querySelectorAll('.venue-item').forEach(el=>el.classList.remove('selected'));
@@ -240,39 +363,32 @@ function selectVenue(idx){
   document.getElementById('detail-name').textContent=v.name;
   document.getElementById('detail-meta').textContent=v.area+(v.lad?' · '+v.lad:'');
   const inc=document.getElementById('detail-income');
-  if(v.income&&v.income!=='N/A'){
-    inc.textContent=v.income+' avg household income'+(v.msoa?' ('+v.msoa+')':'');
-    inc.style.background=v.band==='blue'?'#e6eeff':v.band==='green'?'#e8f5e9':'#f5f5f5';
-  } else {
-    inc.textContent='Income data not available (Scotland)';
-    inc.style.background='#f5f5f5';
-  }
+  if(v.income&&v.income!=='N/A'){inc.textContent=v.income+' avg household income'+(v.msoa?' ('+v.msoa+')':'');inc.style.background=v.band==='blue'?'#e6eeff':v.band==='green'?'#e8f5e9':'#f5f5f5';}
+  else{inc.textContent='Income data not available (Scotland)';inc.style.background='#f5f5f5';}
   const link=document.getElementById('detail-link');
   if(v.url){link.href=v.url;link.style.display='inline-block';link.textContent='🌐 '+v.url.replace(/^https?:\/\//,'').split('/')[0];}
   else{link.style.display='none';}
-  document.getElementById('note-input').value=notes[v.name]||'';
+  const d=venueData[v.name]||{};
+  document.getElementById('field-status').value=d.status||'';
+  document.getElementById('field-contact-person').value=d.contact_person||'';
+  document.getElementById('field-contact-email').value=d.contact_email||'';
+  document.getElementById('field-contact-phone').value=d.contact_phone||'';
+  document.getElementById('field-daily-hire').value=d.daily_hire||'';
+  document.getElementById('field-capacity').value=d.capacity||'';
+  document.getElementById('field-availability').value=d.availability||'';
+  document.getElementById('field-note').value=d.note||'';
   document.getElementById('saved-note').style.display='none';
+  document.getElementById('saving-note').style.display='none';
 }
 
-function saveNote(){
-  if(selectedIndex===null)return;
-  const v=venues[selectedIndex];
-  notes[v.name]=document.getElementById('note-input').value;
-  localStorage.setItem('ah_notes',JSON.stringify(notes));
-  const s=document.getElementById('saved-note');
-  s.style.display='block';
-  setTimeout(()=>s.style.display='none',1500);
-  renderAll();
-}
-
-function setFilter(f,btn){
+function setFilter(f,btn) {
   currentFilter=f;
   document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   renderAll();
 }
 
-renderAll();
+loadAllData().then(()=>renderAll());
 </script>
 </body>
 </html>
